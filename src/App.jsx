@@ -5,6 +5,8 @@ import OwnerScreen from './screens/OwnerScreen.jsx';
 import EntryScreen from './screens/EntryScreen.jsx';
 import HistoryScreen from './screens/HistoryScreen.jsx';
 import SettingsScreen from './screens/SettingsScreen.jsx';
+import { TabIcon } from './components/ui.jsx';
+import { color } from './theme.js';
 import { getDesigners, getEntries, getRole, getCurrentDesignerId, getServices, getCustomers } from './data/store.js';
 
 export default function App() {
@@ -50,21 +52,21 @@ export default function App() {
 
   const tabs = role === 'owner'
     ? [
-        { key: 'main', label: '團隊總覽', icon: '🛡️' },
-        { key: 'entry', label: '記錄', icon: '＋' },
-        { key: 'history', label: '歷史', icon: '📋' },
-        { key: 'settings', label: '設定', icon: '⚙️' },
+        { key: 'main', label: '團隊總覽', icon: 'shield' },
+        { key: 'entry', label: '記錄', icon: 'plus' },
+        { key: 'history', label: '歷史', icon: 'list' },
+        { key: 'settings', label: '設定', icon: 'gear' },
       ]
     : [
-        { key: 'main', label: '我的業績', icon: '📊' },
-        { key: 'entry', label: '記錄', icon: '＋' },
-        { key: 'history', label: '歷史', icon: '📋' },
-        { key: 'settings', label: '設定', icon: '⚙️' },
+        { key: 'main', label: '我的業績', icon: 'chart' },
+        { key: 'entry', label: '記錄', icon: 'plus' },
+        { key: 'history', label: '歷史', icon: 'list' },
+        { key: 'settings', label: '設定', icon: 'gear' },
       ];
 
   return (
     <div style={{
-      minHeight: '100vh', background: '#FAF7F5', fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
+      minHeight: '100vh', background: color.bg, fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
       display: 'flex', flexDirection: 'column',
     }}>
       <div style={{ flex: 1, paddingTop: 'env(safe-area-inset-top)' }}>
@@ -112,18 +114,18 @@ export default function App() {
       <div style={{
         position: 'fixed', bottom: 0, left: 0, right: 0,
         background: 'rgba(255,255,255,0.94)', backdropFilter: 'blur(10px)',
-        borderTop: '1px solid #EBE2E6', display: 'flex',
-        paddingBottom: 'env(safe-area-inset-bottom)',
+        borderTop: `1px solid ${color.hairline}`, boxShadow: '0 -6px 20px rgba(43,30,42,0.06)',
+        display: 'flex', paddingBottom: 'env(safe-area-inset-bottom)',
       }}>
         {tabs.map(t => (
           <button key={t.key} onClick={() => setTab(t.key)} style={{
-            flex: 1, border: 'none', background: 'none', padding: '10px 0 8px',
-            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
+            flex: 1, border: 'none', background: 'none', padding: '11px 0 8px',
+            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
           }}>
-            <span style={{ fontSize: 18, opacity: tab === t.key ? 1 : 0.45 }}>{t.icon}</span>
+            <TabIcon name={t.icon} active={tab === t.key} />
             <span style={{
               fontSize: 10.5, fontWeight: 600,
-              color: tab === t.key ? '#4A2545' : '#9C8B97',
+              color: tab === t.key ? color.plum : color.textFaint,
             }}>
               {t.label}
             </span>
