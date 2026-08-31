@@ -2,12 +2,3 @@ workflows:
   ios-capacitor:
     name: 髮廊業績通 iOS Build
     max_build_duration: 60
-    instance_type: mac_mini_m2
-    integrations:
-      app_store_connect: tide-admin-key
-    environment:
-      ios_signing:
-        distribution_type: app_store
-        bundle_identifier: com.salonhsu.salontransparency
-      vars:
-    
