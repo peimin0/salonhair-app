@@ -1,31 +1,70 @@
 import React, { useState } from 'react';
-import { Chip, PrimaryButton } from '../components/ui.jsx';
-import { addEntry } from '../data/store.js';
+import { Chip, PrimaryButton, CustomerAutocomplete } from '../components/ui.jsx';
+import { addEntry, addCustomer } from '../data/store.js';
 
-const services = ['剪髮', '染髮', '燙髮', '護髮'];
+function todayStr() {
+  const d = new Date();
+  const tz = d.getTimezoneOffset() * 60000;
+  return new Date(d - tz).toISOString().slice(0, 10);
+}
 
-export default function EntryScreen({ role, designers, currentDesignerId, onSaved }) {
+function nowTimeStr() {
+  const d = new Date();
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+
+export default function EntryScreen({ role, designers, currentDesignerId, services, customers, entries, onSaved }) {
   const fixedDesigner = role === 'designer'
     ? designers.find(d => d.id === currentDesignerId)
     : null;
 
   const [targetId, setTargetId] = useState(fixedDesigner ? fixedDesigner.id : (designers[0]?.id || ''));
-  const [service, setService] = useState(services[0]);
+  const [service, setService] = useState(services[0] || '');
   const [amount, setAmount] = useState('');
-  const [isRepeat, setIsRepeat] = useState(false);
+  const [dateStr, setDateStr] = useState(todayStr());
+  const [timeStr, setTimeStr] = useState(nowTimeStr());
+  const [customerQuery, setCustomerQuery] = useState('');
+  const [customerId, setCustomerId] = useState(null);
   const [saved, setSaved] = useState(false);
 
+  const targetDesigner = designers.find(d => d.id === targetId) || null;
+  const commissionPreview = targetDesigner && amount
+    ? Math.round(Number(amount) * targetDesigner.commissionRate)
+    : null;
+
+  // 判斷這位客人在這位設計師底下是不是回頭客：只要名字對上既有客人，
+  // 且該客人在這位設計師底下已經有記錄，就算回頭客
+  const matchedByName = customers.find(c => c.name === customerQuery.trim());
+  const effectiveCustomerId = customerId || (matchedByName ? matchedByName.id : null);
+  const priorVisits = effectiveCustomerId
+    ? entries.filter(e => e.customerId === effectiveCustomerId && e.designerId === targetId).length
+    : 0;
+  const willBeRepeat = priorVisits > 0;
+
   const handleSave = async () => {
-    if (!amount || !targetId) return;
+    if (!amount || !targetId || !dateStr) return;
+    const name = customerQuery.trim();
+    let finalCustomerId = effectiveCustomerId;
+    if (!finalCustomerId && name) {
+      const created = await addCustomer(name);
+      finalCustomerId = created.id;
+    }
+    // 補登過去日期時，用選擇的時間；沒特別選就是現在的時間
+    const dateISO = new Date(`${dateStr}T${timeStr || '12:00'}:00`).toISOString();
     await addEntry({
       designerId: targetId,
       service,
       amount: Number(amount),
-      isRepeat,
+      isRepeat: willBeRepeat,
+      customerId: finalCustomerId || null,
+      dateISO,
     });
     setSaved(true);
     setAmount('');
-    setIsRepeat(false);
+    setCustomerQuery('');
+    setCustomerId(null);
+    setDateStr(todayStr());
+    setTimeStr(nowTimeStr());
     onSaved();
     setTimeout(() => setSaved(false), 1600);
   };
@@ -63,11 +102,67 @@ export default function EntryScreen({ role, designers, currentDesignerId, onSave
         </>
       )}
 
+      <div style={{ fontSize: 12, fontWeight: 600, color: '#6E5B68', marginBottom: 8 }}>客人</div>
+      <div style={{ marginBottom: 8 }}>
+        <CustomerAutocomplete
+          customers={customers}
+          queryText={customerQuery}
+          onQueryChange={setCustomerQuery}
+          selectedId={customerId}
+          onSelect={(c) => { setCustomerId(c ? c.id : null); if (c) setCustomerQuery(c.name); }}
+        />
+      </div>
+      {customerQuery.trim() && (
+        <div style={{
+          fontSize: 12, marginBottom: 18, paddingLeft: 4, fontWeight: 600,
+          color: willBeRepeat ? '#6F8B6E' : '#B8934A',
+        }}>
+          {willBeRepeat ? `↻ 回頭客（已服務過 ${priorVisits} 次）` : '✦ 新客人'}
+        </div>
+      )}
+      {!customerQuery.trim() && <div style={{ marginBottom: 18 }} />}
+
       <div style={{ fontSize: 12, fontWeight: 600, color: '#6E5B68', marginBottom: 8 }}>服務項目</div>
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 18 }}>
-        {services.map(s => (
-          <Chip key={s} active={service === s} onClick={() => setService(s)}>{s}</Chip>
-        ))}
+      {services.length === 0 ? (
+        <div style={{ fontSize: 12.5, color: '#9C8B97', marginBottom: 18 }}>
+          尚未設定服務項目，去「設定」分頁新增。
+        </div>
+      ) : (
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 18 }}>
+          {services.map(s => (
+            <Chip key={s} active={service === s} onClick={() => setService(s)}>{s}</Chip>
+          ))}
+        </div>
+      )}
+
+      <div style={{ display: 'flex', gap: 10, marginBottom: 18 }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 12, fontWeight: 600, color: '#6E5B68', marginBottom: 8 }}>日期</div>
+          <input
+            type="date"
+            value={dateStr}
+            max={todayStr()}
+            onChange={e => setDateStr(e.target.value)}
+            style={{
+              width: '100%', boxSizing: 'border-box', fontSize: 15, color: '#2B1E2A',
+              border: '1px solid #EBE2E6', borderRadius: 14, padding: '13px 16px',
+              background: '#fff', outline: 'none',
+            }}
+          />
+        </div>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 12, fontWeight: 600, color: '#6E5B68', marginBottom: 8 }}>時間</div>
+          <input
+            type="time"
+            value={timeStr}
+            onChange={e => setTimeStr(e.target.value)}
+            style={{
+              width: '100%', boxSizing: 'border-box', fontSize: 15, color: '#2B1E2A',
+              border: '1px solid #EBE2E6', borderRadius: 14, padding: '13px 16px',
+              background: '#fff', outline: 'none',
+            }}
+          />
+        </div>
       </div>
 
       <div style={{ fontSize: 12, fontWeight: 600, color: '#6E5B68', marginBottom: 8 }}>消費金額</div>
@@ -79,26 +174,20 @@ export default function EntryScreen({ role, designers, currentDesignerId, onSave
         onChange={e => setAmount(e.target.value)}
         style={{
           width: '100%', boxSizing: 'border-box', fontSize: 22, fontWeight: 700, color: '#2B1E2A',
-          border: '1px solid #EBE2E6', borderRadius: 14, padding: '14px 16px', marginBottom: 16,
+          border: '1px solid #EBE2E6', borderRadius: 14, padding: '14px 16px', marginBottom: 8,
           background: '#fff', outline: 'none',
         }}
       />
-
-      <button onClick={() => setIsRepeat(v => !v)} style={{
-        display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '14px 16px',
-        borderRadius: 14, border: '1px solid #EBE2E6', background: '#fff', marginBottom: 20,
-      }}>
-        <div style={{
-          width: 22, height: 22, borderRadius: 6, flexShrink: 0,
-          background: isRepeat ? '#4A2545' : '#fff', border: isRepeat ? 'none' : '1px solid #C9BAC5',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 13,
-        }}>
-          {isRepeat ? '✓' : ''}
+      {targetDesigner && (
+        <div style={{ fontSize: 12.5, color: '#6E5B68', marginBottom: 20, paddingLeft: 4 }}>
+          抽成 {Math.round(targetDesigner.commissionRate * 100)}%
+          {commissionPreview !== null && (
+            <span style={{ fontWeight: 700, color: '#4A2545' }}>　→　抽成金額 ${commissionPreview.toLocaleString('zh-TW')}</span>
+          )}
         </div>
-        <div style={{ fontSize: 14, color: '#2B1E2A', fontWeight: 600 }}>這是回頭客</div>
-      </button>
+      )}
 
-      <PrimaryButton onClick={handleSave} disabled={!amount} tone={saved ? 'sage' : 'plum'}>
+      <PrimaryButton onClick={handleSave} disabled={!amount || !service} tone={saved ? 'sage' : 'plum'}>
         {saved ? '已記錄 ✓' : '儲存記錄'}
       </PrimaryButton>
     </div>

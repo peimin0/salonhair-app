@@ -3,27 +3,35 @@ import Onboarding from './screens/Onboarding.jsx';
 import DesignerScreen from './screens/DesignerScreen.jsx';
 import OwnerScreen from './screens/OwnerScreen.jsx';
 import EntryScreen from './screens/EntryScreen.jsx';
+import HistoryScreen from './screens/HistoryScreen.jsx';
 import SettingsScreen from './screens/SettingsScreen.jsx';
-import { getDesigners, getEntries, getRole, getCurrentDesignerId } from './data/store.js';
+import { getDesigners, getEntries, getRole, getCurrentDesignerId, getServices, getCustomers } from './data/store.js';
 
 export default function App() {
   const [loading, setLoading] = useState(true);
   const [role, setRoleState] = useState(null);
   const [designers, setDesigners] = useState([]);
   const [entries, setEntries] = useState([]);
+  const [services, setServices] = useState([]);
+  const [customers, setCustomers] = useState([]);
   const [currentDesignerId, setCurrentDesignerIdState] = useState(null);
   const [tab, setTab] = useState('main');
 
   const loadAll = useCallback(async () => {
-    const [r, ds, es, cid] = await Promise.all([
-      getRole(), getDesigners(), getEntries(), getCurrentDesignerId(),
+    const [r, ds, es, cid, sv, cu] = await Promise.all([
+      getRole(), getDesigners(), getEntries(), getCurrentDesignerId(), getServices(), getCustomers(),
     ]);
     setRoleState(r);
     setDesigners(ds);
     setEntries(es);
     setCurrentDesignerIdState(cid);
-    setTab(r === 'designer' ? 'main' : 'main');
+    setServices(sv);
+    setCustomers(cu);
     setLoading(false);
+  }, []);
+
+  const loadServices = useCallback(async () => {
+    setServices(await getServices());
   }, []);
 
   useEffect(() => { loadAll(); }, [loadAll]);
@@ -44,11 +52,13 @@ export default function App() {
     ? [
         { key: 'main', label: '團隊總覽', icon: '🛡️' },
         { key: 'entry', label: '記錄', icon: '＋' },
+        { key: 'history', label: '歷史', icon: '📋' },
         { key: 'settings', label: '設定', icon: '⚙️' },
       ]
     : [
         { key: 'main', label: '我的業績', icon: '📊' },
         { key: 'entry', label: '記錄', icon: '＋' },
+        { key: 'history', label: '歷史', icon: '📋' },
         { key: 'settings', label: '設定', icon: '⚙️' },
       ];
 
@@ -69,14 +79,31 @@ export default function App() {
             role={role}
             designers={designers}
             currentDesignerId={currentDesignerId}
+            services={services}
+            customers={customers}
+            entries={entries}
             onSaved={loadAll}
+          />
+        )}
+        {tab === 'history' && (
+          <HistoryScreen
+            role={role}
+            designers={designers}
+            entries={entries}
+            services={services}
+            customers={customers}
+            currentDesignerId={currentDesignerId}
+            onChanged={loadAll}
           />
         )}
         {tab === 'settings' && (
           <SettingsScreen
             role={role}
             designers={designers}
+            services={services}
+            customers={customers}
             onChanged={loadAll}
+            onServicesChanged={loadServices}
             onRoleReset={loadAll}
           />
         )}

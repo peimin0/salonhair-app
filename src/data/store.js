@@ -5,7 +5,11 @@ const KEYS = {
   entries: 'salon_entries',
   role: 'salon_role',
   currentDesignerId: 'salon_current_designer_id',
+  services: 'salon_services',
+  customers: 'salon_customers',
 };
+
+const DEFAULT_SERVICES = ['剪髮', '染髮', '燙髮', '護髮'];
 
 async function getJSON(key, fallback) {
   const { value } = await Preferences.get({ key });
@@ -75,6 +79,36 @@ export async function deleteEntry(id) {
   await setJSON(KEYS.entries, entries.filter(e => e.id !== id));
 }
 
+export async function updateEntry(id, patch) {
+  const entries = await getEntries();
+  const updated = entries.map(e => (e.id === id ? { ...e, ...patch } : e));
+  await setJSON(KEYS.entries, updated);
+}
+
+// ---------- 服務項目 ----------
+export async function getServices() {
+  return getJSON(KEYS.services, DEFAULT_SERVICES);
+}
+
+export async function saveServices(services) {
+  await setJSON(KEYS.services, services);
+}
+
+export async function addService(name) {
+  const services = await getServices();
+  if (services.includes(name)) return services;
+  const updated = [...services, name];
+  await saveServices(updated);
+  return updated;
+}
+
+export async function deleteService(name) {
+  const services = await getServices();
+  const updated = services.filter(s => s !== name);
+  await saveServices(updated);
+  return updated;
+}
+
 // ---------- 角色與目前使用者 ----------
 export async function getRole() {
   const { value } = await Preferences.get({ key: KEYS.role });
@@ -96,4 +130,31 @@ export async function setCurrentDesignerId(id) {
 
 export async function resetAll() {
   await Preferences.clear();
+}
+
+// ---------- 客人 ----------
+export async function getCustomers() {
+  return getJSON(KEYS.customers, []);
+}
+
+export async function saveCustomers(customers) {
+  await setJSON(KEYS.customers, customers);
+}
+
+export async function addCustomer(name, phone = '') {
+  const customers = await getCustomers();
+  const newCustomer = { id: 'c_' + Date.now(), name, phone };
+  await saveCustomers([...customers, newCustomer]);
+  return newCustomer;
+}
+
+export async function updateCustomer(id, patch) {
+  const customers = await getCustomers();
+  const updated = customers.map(c => (c.id === id ? { ...c, ...patch } : c));
+  await saveCustomers(updated);
+}
+
+export async function deleteCustomer(id) {
+  const customers = await getCustomers();
+  await saveCustomers(customers.filter(c => c.id !== id));
 }

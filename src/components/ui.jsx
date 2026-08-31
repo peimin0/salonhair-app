@@ -66,3 +66,46 @@ export function PrimaryButton({ onClick, children, tone = 'plum', disabled }) {
 export const riskColor = { low: '#6F8B6E', medium: '#B8934A', high: '#B8756B', unknown: '#9C8B97' };
 export const riskBg = { low: '#E8EEE6', medium: '#F6EEDD', high: '#F5E6E3', unknown: '#F1EDEF' };
 export const riskLabel = { low: '穩定', medium: '需留意', high: '高風險', unknown: '尚無資料' };
+
+// 客人姓名搜尋/選擇輸入框。輸入既有客人姓名可從清單點選，
+// 輸入新名字（清單沒有比對到）就當作新客人，儲存時才會真的建立。
+export function CustomerAutocomplete({ customers, queryText, onQueryChange, selectedId, onSelect }) {
+  const [focused, setFocused] = React.useState(false);
+  const q = queryText.trim();
+  const matches = q
+    ? customers.filter(c => c.name.includes(q) || (c.phone && c.phone.includes(q))).slice(0, 6)
+    : [];
+
+  return (
+    <div style={{ position: 'relative' }}>
+      <input
+        value={queryText}
+        onChange={e => { onQueryChange(e.target.value); onSelect(null); }}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setTimeout(() => setFocused(false), 150)}
+        placeholder="輸入客人姓名或電話"
+        style={{
+          width: '100%', boxSizing: 'border-box', fontSize: 15, color: '#2B1E2A',
+          border: '1px solid #EBE2E6', borderRadius: 14, padding: '13px 16px',
+          background: '#fff', outline: 'none',
+        }}
+      />
+      {focused && matches.length > 0 && (
+        <div style={{
+          position: 'absolute', top: '100%', left: 0, right: 0, marginTop: 4, zIndex: 10,
+          background: '#fff', borderRadius: 12, border: '1px solid #EBE2E6',
+          boxShadow: '0 6px 18px rgba(43,30,42,0.12)', overflow: 'hidden',
+        }}>
+          {matches.map(c => (
+            <button key={c.id} onMouseDown={() => onSelect(c)} style={{
+              width: '100%', textAlign: 'left', padding: '11px 14px', border: 'none',
+              background: selectedId === c.id ? '#F6EEDD' : '#fff', fontSize: 13.5, color: '#2B1E2A',
+            }}>
+              {c.name}{c.phone ? ` · ${c.phone}` : ''}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
