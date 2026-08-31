@@ -1,7 +1,7 @@
 import { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.yourname.salontransparency',
+  appId: 'com.salonhsu.salontransparency',
   appName: '髮廊業績通',
   webDir: 'dist',
 };
