@@ -70,14 +70,16 @@ export const riskColor = { low: color.sage, medium: color.gold, high: color.rose
 export const riskBg = { low: color.sageTint, medium: color.goldTint, high: color.roseTint, unknown: color.surfaceSunken };
 export const riskLabel = { low: '穩定', medium: '需留意', high: '高風險', unknown: '尚無資料' };
 
-// 客人姓名搜尋/選擇輸入框。輸入既有客人姓名可從清單點選，
-// 輸入新名字（清單沒有比對到）就當作新客人，儲存時才會真的建立。
+// 客人姓名搜尋/選擇輸入框。點擊就會列出所有既有客人可以直接選，
+// 開始打字則篩選符合的名字；打完全新的名字（沒對到任何既有客人）
+// 儲存時才會真的建立新客人資料。
 export function CustomerAutocomplete({ customers, queryText, onQueryChange, selectedId, onSelect }) {
   const [focused, setFocused] = React.useState(false);
   const q = queryText.trim();
-  const matches = q
-    ? customers.filter(c => c.name.includes(q) || (c.phone && c.phone.includes(q))).slice(0, 6)
-    : [];
+  const list = q
+    ? customers.filter(c => c.name.includes(q) || (c.phone && c.phone.includes(q)))
+    : customers.slice().sort((a, b) => a.name.localeCompare(b.name, 'zh-Hant'));
+  const matches = list.slice(0, 20);
 
   return (
     <div style={{ position: 'relative' }}>
@@ -86,22 +88,30 @@ export function CustomerAutocomplete({ customers, queryText, onQueryChange, sele
         onChange={e => { onQueryChange(e.target.value); onSelect(null); }}
         onFocus={() => setFocused(true)}
         onBlur={() => setTimeout(() => setFocused(false), 150)}
-        placeholder="輸入客人姓名或電話"
+        placeholder={customers.length > 0 ? '輸入姓名搜尋，或點選既有客人' : '輸入客人姓名或電話'}
         style={{
           width: '100%', boxSizing: 'border-box', fontSize: 15, color: color.textPrimary,
-          border: `1px solid ${color.hairline}`, borderRadius: radius.md, padding: '13px 16px',
+          border: `1px solid ${color.hairline}`, borderRadius: radius.md, padding: '13px 40px 13px 16px',
           background: color.surface, outline: 'none',
         }}
       />
+      {customers.length > 0 && (
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={color.textFaint} strokeWidth="2"
+          strokeLinecap="round" strokeLinejoin="round"
+          style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
+          <path d="M6 9l6 6 6-6" />
+        </svg>
+      )}
       {focused && matches.length > 0 && (
         <div style={{
           position: 'absolute', top: '100%', left: 0, right: 0, marginTop: 4, zIndex: 10,
           background: color.surface, borderRadius: radius.sm, border: `1px solid ${color.hairline}`,
-          boxShadow: shadow.elevated, overflow: 'hidden',
+          boxShadow: shadow.elevated, overflow: 'auto', maxHeight: 240,
         }}>
           {matches.map(c => (
             <button key={c.id} onMouseDown={() => onSelect(c)} style={{
               width: '100%', textAlign: 'left', padding: '11px 14px', border: 'none',
+              borderBottom: `1px solid ${color.hairline}`,
               background: selectedId === c.id ? color.goldTint : color.surface, fontSize: 13.5, color: color.textPrimary,
             }}>
               {c.name}{c.phone ? ` · ${c.phone}` : ''}

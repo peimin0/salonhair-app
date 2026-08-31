@@ -40,7 +40,7 @@ export default function App() {
 
   if (loading) {
     return (
-      <div style={{ minHeight: '100vh', background: '#FAF7F5' }} />
+      <div style={{ minHeight: '100vh', background: color.pageGradient }} />
     );
   }
 
@@ -66,7 +66,7 @@ export default function App() {
 
   return (
     <div style={{
-      minHeight: '100vh', background: color.bg, fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
+      minHeight: '100vh', background: color.pageGradient, fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
       display: 'flex', flexDirection: 'column',
     }}>
       <div style={{ flex: 1, paddingTop: 'env(safe-area-inset-top)' }}>

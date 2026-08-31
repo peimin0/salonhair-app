@@ -4,16 +4,17 @@
 
 export const color = {
   bg: '#FAF7F3',
+  pageGradient: 'radial-gradient(ellipse 120% 60% at 50% -10%, #FFFDFB 0%, #F8F2EE 45%, #F1E8E3 100%)',
   surface: '#FFFFFF',
   surfaceSunken: '#F3ECEF',
-  hairline: '#EBE2E6',
+  hairline: '#EEE5E2',
 
   textPrimary: '#2B1E2A',
   textSecondary: '#6E5B68',
   textFaint: '#9C8B97',
 
   plum: '#4A2545',
-  plumDeep: '#34172F',
+  plumDeep: '#2E1530',
 
   gold: '#B8934A',
   goldDeep: '#8A6B2A',
@@ -29,12 +30,12 @@ export const color = {
 
 export const space = { xs: 4, sm: 8, md: 12, lg: 16, xl: 20, xxl: 24, xxxl: 32 };
 
-export const radius = { sm: 10, md: 14, lg: 16, xl: 20, pill: 999 };
+export const radius = { sm: 10, md: 14, lg: 18, xl: 22, pill: 999 };
 
 export const shadow = {
   // 只用在真正需要拉出層次的元素（英雄卡片、底部導覽），不是每張卡都套
-  elevated: '0 10px 28px rgba(43, 30, 42, 0.16)',
-  soft: '0 2px 10px rgba(43, 30, 42, 0.05)',
+  elevated: '0 14px 32px rgba(43, 30, 42, 0.20), inset 0 1px 0 rgba(255,255,255,0.10)',
+  soft: '0 3px 12px rgba(43, 30, 42, 0.055)',
 };
 
 // 金額數字用等寬對齊，直向排列時位數才會對齊，讀起來更像真正的財務數字
