@@ -10,35 +10,4 @@ workflows:
         distribution_type: app_store
         bundle_identifier: com.salonhsu.salontransparency
       vars:
-        XCODE_WORKSPACE: "ios/App/App.xcworkspace"
-        XCODE_SCHEME: "App"
-      node: 20
-    scripts:
-      - name: 安裝網頁專案套件
-        script: |
-          npm install
-      - name: 建置網頁版
-        script: |
-          npm run build
-      - name: 同步 Capacitor iOS 專案
-        script: |
-          npx cap sync ios
-      - name: 安裝 CocoaPods 套件
-        script: |
-          cd ios/App && pod install
-      - name: 自動設定簽章
-        script: |
-          xcode-project use-profiles
-      - name: 建置 IPA
-        script: |
-          xcode-project build-ipa \
-            --workspace "$XCODE_WORKSPACE" \
-            --scheme "$XCODE_SCHEME"
-    artifacts:
-      - build/ios/ipa/*.ipa
-      - /tmp/xcodebuild_logs/*.log
-    publishing:
-      app_store_connect:
-        auth: integration
-        submit_to_testflight: true
-        submit_to_app_store: false
+    
