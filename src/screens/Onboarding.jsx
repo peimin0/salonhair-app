@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { addDesigner, setRole, setCurrentDesignerId } from '../data/store.js';
-import { PrimaryButton, PhotoBanner } from '../components/ui.jsx';
+import { PrimaryButton, PageBackground } from '../components/ui.jsx';
 import { color, radius, shadow } from '../theme.js';
 import interiorImg from '../assets/photos/interior.jpg';
 
@@ -33,15 +33,17 @@ export default function Onboarding({ designers, onDone }) {
   };
 
   return (
-    <div style={{
-      minHeight: '100vh', background: color.pageGradient, display: 'flex', flexDirection: 'column',
-      justifyContent: 'center', padding: '24px 20px', fontFamily: '-apple-system, sans-serif',
-      paddingTop: 'calc(env(safe-area-inset-top) + 24px)',
-      paddingBottom: 'calc(env(safe-area-inset-bottom) + 24px)',
-    }}>
+    <>
+      <PageBackground src={interiorImg} />
+      <div style={{
+        minHeight: '100vh', display: 'flex', flexDirection: 'column',
+        justifyContent: 'center', padding: '24px 20px', fontFamily: '-apple-system, sans-serif',
+        paddingTop: 'calc(env(safe-area-inset-top) + 24px)',
+        paddingBottom: 'calc(env(safe-area-inset-bottom) + 24px)',
+        position: 'relative', zIndex: 1,
+      }}>
       {step === 'choose' && (
         <>
-          <PhotoBanner src={interiorImg} height={190} style={{ marginBottom: 20 }} />
           <div style={{ fontSize: 13, color: color.textSecondary, textAlign: 'center' }}>歡迎使用</div>
           <div style={{ fontSize: 27, fontWeight: 700, color: color.textPrimary, textAlign: 'center', marginBottom: 28, letterSpacing: '-0.01em' }}>
             髮廊業績通
@@ -108,6 +110,7 @@ export default function Onboarding({ designers, onDone }) {
           <PrimaryButton onClick={createSelf} disabled={!name.trim()}>完成，開始使用</PrimaryButton>
         </>
       )}
-    </div>
+      </div>
+    </>
   );
 }

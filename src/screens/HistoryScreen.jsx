@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
-import { Chip, fmt, CustomerAutocomplete, PhotoBanner } from '../components/ui.jsx';
+import { Chip, fmt, CustomerAutocomplete, PageBackground } from '../components/ui.jsx';
 import { updateEntry, deleteEntry, addCustomer } from '../data/store.js';
 import framesImg from '../assets/photos/frames.jpg';
 
@@ -123,8 +123,9 @@ export default function HistoryScreen({ role, designers, entries, services, cust
   };
 
   return (
-    <div style={{ padding: '20px 16px 100px' }}>
-      <PhotoBanner src={framesImg} height={130} style={{ marginBottom: 16 }} />
+    <>
+      <PageBackground src={framesImg} />
+      <div style={{ padding: '20px 16px 100px', position: 'relative', zIndex: 1 }}>
       <div style={{ fontSize: 13, color: '#6E5B68' }}>歷史記錄</div>
       <div style={{ fontSize: 26, fontWeight: 700, color: '#2B1E2A', marginTop: 2, marginBottom: 16 }}>
         全部服務記錄（{visibleEntries.length}）
@@ -227,6 +228,7 @@ export default function HistoryScreen({ role, designers, entries, services, cust
           ))}
         </div>
       )}
-    </div>
+      </div>
+    </>
   );
 }

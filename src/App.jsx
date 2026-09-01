@@ -69,7 +69,7 @@ export default function App() {
       minHeight: '100vh', background: color.pageGradient, fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
       display: 'flex', flexDirection: 'column',
     }}>
-      <div style={{ flex: 1, paddingTop: 'env(safe-area-inset-top)' }}>
+      <div style={{ flex: 1, paddingTop: 'env(safe-area-inset-top)', position: 'relative', zIndex: 1 }}>
         {tab === 'main' && role === 'owner' && (
           <OwnerScreen designers={designers} entries={entries} />
         )}
@@ -112,7 +112,7 @@ export default function App() {
       </div>
 
       <div style={{
-        position: 'fixed', bottom: 0, left: 0, right: 0,
+        position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 2,
         background: 'rgba(255,255,255,0.94)', backdropFilter: 'blur(10px)',
         borderTop: `1px solid ${color.hairline}`, boxShadow: '0 -6px 20px rgba(43,30,42,0.06)',
         display: 'flex', paddingBottom: 'env(safe-area-inset-bottom)',

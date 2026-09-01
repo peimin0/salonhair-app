@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Chip, PrimaryButton, CustomerAutocomplete, PhotoBanner } from '../components/ui.jsx';
+import { Chip, PrimaryButton, CustomerAutocomplete, PageBackground } from '../components/ui.jsx';
 import { addEntry, addCustomer } from '../data/store.js';
 import stylingImg from '../assets/photos/styling.jpg';
 
@@ -72,20 +72,24 @@ export default function EntryScreen({ role, designers, currentDesignerId, servic
 
   if (designers.length === 0) {
     return (
-      <div style={{ padding: '40px 16px', textAlign: 'center' }}>
-        <div style={{ fontSize: 15, fontWeight: 600, color: '#2B1E2A', marginBottom: 8 }}>
-          還沒有設計師資料
+      <>
+        <PageBackground src={stylingImg} />
+        <div style={{ padding: '40px 16px', textAlign: 'center', position: 'relative', zIndex: 1 }}>
+          <div style={{ fontSize: 15, fontWeight: 600, color: '#2B1E2A', marginBottom: 8 }}>
+            還沒有設計師資料
+          </div>
+          <div style={{ fontSize: 13, color: '#6E5B68' }}>
+            先去「設定」分頁新增設計師，才能開始記錄服務。
+          </div>
         </div>
-        <div style={{ fontSize: 13, color: '#6E5B68' }}>
-          先去「設定」分頁新增設計師，才能開始記錄服務。
-        </div>
-      </div>
+      </>
     );
   }
 
   return (
-    <div style={{ padding: '20px 16px 100px' }}>
-      <PhotoBanner src={stylingImg} height={130} style={{ marginBottom: 16 }} />
+    <>
+      <PageBackground src={stylingImg} />
+      <div style={{ padding: '20px 16px 100px', position: 'relative', zIndex: 1 }}>
       <div style={{ fontSize: 13, color: '#6E5B68' }}>今天</div>
       <div style={{ fontSize: 26, fontWeight: 700, color: '#2B1E2A', marginTop: 2, marginBottom: 16 }}>
         新增一筆服務記錄
@@ -192,6 +196,7 @@ export default function EntryScreen({ role, designers, currentDesignerId, servic
       <PrimaryButton onClick={handleSave} disabled={!amount || !service} tone={saved ? 'sage' : 'plum'}>
         {saved ? '已記錄 ✓' : '儲存記錄'}
       </PrimaryButton>
-    </div>
+      </div>
+    </>
   );
 }
