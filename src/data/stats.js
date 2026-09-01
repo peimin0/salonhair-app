@@ -73,7 +73,10 @@ export function buildRoster(designers, entries) {
     const prev = statsForDesignerMonth(entries, d.id, prevKey);
     const repeatRate = cur.clients > 0 ? cur.repeatClients / cur.clients : 0;
     const trendPct = growthPct(cur.revenue, prev.revenue);
-    const hasData = cur.clients > 0 || prev.clients > 0;
+    // 一定要有完整的「上個月」資料才能算風險，否則趨勢比較沒有意義
+    // （剛加入不到一個月，本月數字再少也不代表在走下坡）
+    const hasData = prev.clients > 0;
+    const isNew = !hasData && cur.clients > 0;
     return {
       ...d,
       revenue: cur.revenue,
@@ -82,6 +85,7 @@ export function buildRoster(designers, entries) {
       trendPct,
       risk: riskLevelFor(trendPct, repeatRate, hasData),
       hasData,
+      isNew,
     };
   });
 }

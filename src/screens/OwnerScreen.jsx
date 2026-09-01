@@ -1,12 +1,24 @@
 import React from 'react';
-import { fmt, riskColor, riskBg, riskLabel } from '../components/ui.jsx';
+import { fmt, riskColor, riskBg, riskLabel, PageBackground } from '../components/ui.jsx';
 import { color, radius, shadow, numericStyle } from '../theme.js';
 import { buildRoster, currentMonthDisplay } from '../data/stats.js';
+import interiorImg from '../assets/photos/interior.jpg';
 
 export default function OwnerScreen({ designers, entries }) {
   const roster = buildRoster(designers, entries);
   const totalRevenue = roster.reduce((s, d) => s + d.revenue, 0);
   const highRisk = roster.filter(d => d.risk === 'high');
+
+  const todayStr = (() => {
+    const d = new Date();
+    const tz = d.getTimezoneOffset() * 60000;
+    return new Date(d - tz).toISOString().slice(0, 10);
+  })();
+  const todayCount = entries.filter(e => {
+    const d = new Date(e.dateISO);
+    const tz = d.getTimezoneOffset() * 60000;
+    return new Date(d - tz).toISOString().slice(0, 10) === todayStr;
+  }).length;
 
   const summaryCardStyle = {
     flex: 1, background: color.surface, borderRadius: radius.lg, padding: '14px 16px',
@@ -14,10 +26,17 @@ export default function OwnerScreen({ designers, entries }) {
   };
 
   return (
-    <div style={{ padding: '20px 16px 100px' }}>
+    <>
+      <PageBackground src={interiorImg} />
+      <div style={{ padding: '20px 16px 100px', position: 'relative', zIndex: 1 }}>
       <div style={{ fontSize: 13, color: color.textSecondary }}>{currentMonthDisplay()} · 團隊總覽</div>
-      <div style={{ fontSize: 26, fontWeight: 700, color: color.textPrimary, marginTop: 2, marginBottom: 16 }}>
-        留才風險儀表板
+      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 16 }}>
+        <div style={{ fontSize: 26, fontWeight: 700, color: color.textPrimary, marginTop: 2 }}>
+          留才風險儀表板
+        </div>
+        <div style={{ fontSize: 12, fontWeight: 600, color: todayCount > 0 ? color.sage : color.textFaint, flexShrink: 0, marginLeft: 8 }}>
+          今日全店 {todayCount} 筆
+        </div>
       </div>
 
       {designers.length === 0 ? (
@@ -81,20 +100,21 @@ export default function OwnerScreen({ designers, entries }) {
                   <div style={{ fontSize: 11.5, color: color.textSecondary, marginTop: 2, ...numericStyle }}>
                     {d.hasData
                       ? `$${fmt(d.revenue)} · 回頭率 ${Math.round(d.repeatRate * 100)}% · ${d.trendPct >= 0 ? '↑' : '↓'}${Math.abs(d.trendPct).toFixed(0)}%`
-                      : '本月尚無記錄'}
+                      : d.isNew ? '累積資料中（未滿一個月，暫不評估風險）' : '本月尚無記錄'}
                   </div>
                 </div>
                 <div style={{
                   fontSize: 11, fontWeight: 700, color: riskColor[d.risk], background: riskBg[d.risk],
                   padding: '5px 10px', borderRadius: 999, flexShrink: 0,
                 }}>
-                  {riskLabel[d.risk]}
+                  {d.isNew ? '累積中' : riskLabel[d.risk]}
                 </div>
               </div>
             ))}
           </div>
         </>
       )}
-    </div>
+      </div>
+    </>
   );
 }

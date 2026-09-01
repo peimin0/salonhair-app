@@ -50,7 +50,7 @@ async function exportCSV(entries, designers, customersById) {
   await Share.share({ title: '髮廊業績通資料匯出', url: uri });
 }
 
-export default function HistoryScreen({ role, designers, entries, services, customers, currentDesignerId, onChanged }) {
+export default function HistoryScreen({ salonCode, role, designers, entries, services, customers, currentDesignerId }) {
   const [openId, setOpenId] = useState(null);
   const [editDate, setEditDate] = useState('');
   const [editTime, setEditTime] = useState('');
@@ -85,7 +85,7 @@ export default function HistoryScreen({ role, designers, entries, services, cust
     const matchedByName = customers.find(c => c.name === name);
     let finalCustomerId = editCustomerId || (matchedByName ? matchedByName.id : null);
     if (!finalCustomerId && name) {
-      const created = await addCustomer(name);
+      const created = await addCustomer(salonCode, name);
       finalCustomerId = created.id;
     }
     // 重新判斷回頭客：這位客人在這位設計師底下，除了這筆以外還有沒有別的記錄
@@ -93,7 +93,7 @@ export default function HistoryScreen({ role, designers, entries, services, cust
       ? entries.some(e => e.id !== id && e.customerId === finalCustomerId && e.designerId === designerId)
       : false;
 
-    await updateEntry(id, {
+    await updateEntry(salonCode, id, {
       dateISO: new Date(`${editDate}T${editTime || '12:00'}:00`).toISOString(),
       service: editService,
       amount: Number(editAmount) || 0,
@@ -101,13 +101,11 @@ export default function HistoryScreen({ role, designers, entries, services, cust
       isRepeat,
     });
     setOpenId(null);
-    onChanged();
   };
 
   const removeEntry = async (id) => {
-    await deleteEntry(id);
+    await deleteEntry(salonCode, id);
     setOpenId(null);
-    onChanged();
   };
 
   const handleExport = async () => {

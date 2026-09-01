@@ -1,9 +1,13 @@
 import React, { useState } from 'react';
 import { PrimaryButton, PageBackground } from '../components/ui.jsx';
-import { addDesigner, updateDesigner, deleteDesigner, setRole, resetAll, addService, deleteService, updateCustomer, deleteCustomer } from '../data/store.js';
+import {
+  addDesigner, updateDesigner, deleteDesigner, addService, deleteService,
+  updateCustomer, deleteCustomer, verifySalonPin, updateSalonPin,
+  signOutRole, signOutDevice,
+} from '../data/store.js';
 import shelfImg from '../assets/photos/shelf.jpg';
 
-export default function SettingsScreen({ role, designers, services, customers, onChanged, onServicesChanged, onRoleReset }) {
+export default function SettingsScreen({ salonCode, role, designers, services, customers, onRoleReset }) {
   const [openId, setOpenId] = useState(null);
   const [editName, setEditName] = useState('');
   const [editRate, setEditRate] = useState('');
@@ -13,18 +17,33 @@ export default function SettingsScreen({ role, designers, services, customers, o
   const [newService, setNewService] = useState('');
   const [openCustomerId, setOpenCustomerId] = useState(null);
   const [editCustomerName, setEditCustomerName] = useState('');
+  const [pinEditing, setPinEditing] = useState(false);
+  const [oldPin, setOldPin] = useState('');
+  const [newPin, setNewPin] = useState('');
+  const [newPin2, setNewPin2] = useState('');
+  const [pinMsg, setPinMsg] = useState('');
+  const [showCode, setShowCode] = useState(false);
+
+  const handleChangePin = async () => {
+    setPinMsg('');
+    const res = await verifySalonPin(salonCode, oldPin);
+    if (!res.ok) { setPinMsg('目前密碼不對'); return; }
+    if (newPin.length !== 4 || newPin !== newPin2) { setPinMsg('新密碼要 4 位數，且兩次要一致'); return; }
+    await updateSalonPin(salonCode, newPin);
+    setPinMsg('已更新');
+    setOldPin(''); setNewPin(''); setNewPin2('');
+    setTimeout(() => { setPinEditing(false); setPinMsg(''); }, 1200);
+  };
 
   const handleAddService = async () => {
     const name = newService.trim();
     if (!name) return;
-    await addService(name);
+    await addService(salonCode, name);
     setNewService('');
-    onServicesChanged();
   };
 
   const handleDeleteService = async (name) => {
-    await deleteService(name);
-    onServicesChanged();
+    await deleteService(salonCode, name);
   };
 
   const openCustomerEdit = (c) => {
@@ -33,15 +52,13 @@ export default function SettingsScreen({ role, designers, services, customers, o
   };
 
   const saveCustomerEdit = async (id) => {
-    await updateCustomer(id, { name: editCustomerName.trim() || '未命名' });
+    await updateCustomer(salonCode, id, { name: editCustomerName.trim() || '未命名' });
     setOpenCustomerId(null);
-    onChanged();
   };
 
   const removeCustomer = async (id) => {
-    await deleteCustomer(id);
+    await deleteCustomer(salonCode, id);
     setOpenCustomerId(null);
-    onChanged();
   };
 
   const openEdit = (d) => {
@@ -51,37 +68,34 @@ export default function SettingsScreen({ role, designers, services, customers, o
   };
 
   const saveEdit = async (id) => {
-    await updateDesigner(id, {
+    await updateDesigner(salonCode, id, {
       name: editName.trim() || '未命名',
       commissionRate: Math.min(90, Math.max(10, Number(editRate) || 45)) / 100,
     });
     setOpenId(null);
-    onChanged();
   };
 
   const remove = async (id) => {
-    await deleteDesigner(id);
+    await deleteDesigner(salonCode, id);
     setOpenId(null);
-    onChanged();
   };
 
   const createDesigner = async () => {
     if (!newName.trim()) return;
-    await addDesigner(newName.trim(), Math.min(90, Math.max(10, Number(newRate) || 45)) / 100);
+    await addDesigner(salonCode, newName.trim(), Math.min(90, Math.max(10, Number(newRate) || 45)) / 100);
     setNewName('');
     setNewRate('45');
     setAddingNew(false);
-    onChanged();
   };
 
   const switchRole = async () => {
-    await setRole(null);
+    await signOutRole();
     onRoleReset();
   };
 
-  const clearEverything = async () => {
-    if (!window.confirm('確定要清除所有資料嗎？這無法復原。')) return;
-    await resetAll();
+  const leaveSalon = async () => {
+    if (!window.confirm('確定要離開這個店家嗎？這支裝置會登出，但雲端資料完全不會受影響，其他裝置照常同步。')) return;
+    await signOutDevice();
     onRoleReset();
   };
 
@@ -249,18 +263,76 @@ export default function SettingsScreen({ role, designers, services, customers, o
 
       <div style={{ fontSize: 13, fontWeight: 600, color: '#2B1E2A', marginBottom: 10 }}>帳號</div>
       <div style={{ fontSize: 12, color: '#6E5B68', marginBottom: 10 }}>目前身份：{role === 'owner' ? '店長 / 老闆' : '設計師'}</div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+
+      {role === 'owner' && (
+        <div style={{ marginBottom: 10 }}>
+          {!showCode ? (
+            <button onClick={() => setShowCode(true)} style={{
+              width: '100%', padding: '13px', borderRadius: 14, border: '1px solid #EBE2E6', background: '#fff',
+              color: '#2B1E2A', fontSize: 13, fontWeight: 600, marginBottom: 10,
+            }}>
+              🔑 顯示店家代碼
+            </button>
+          ) : (
+            <div style={{
+              background: '#fff', borderRadius: 14, border: '1px solid #EBE2E6', padding: 16,
+              textAlign: 'center', marginBottom: 10,
+            }}>
+              <div style={{ fontSize: 11, color: '#6E5B68', fontWeight: 600, marginBottom: 6 }}>把這組代碼給設計師輸入</div>
+              <div style={{ fontSize: 24, fontWeight: 700, letterSpacing: 5, color: '#4A2545' }}>{salonCode}</div>
+            </div>
+          )}
+          {!pinEditing ? (
+            <button onClick={() => setPinEditing(true)} style={{
+              width: '100%', padding: '13px', borderRadius: 14, border: '1px solid #EBE2E6', background: '#fff',
+              color: '#2B1E2A', fontSize: 13, fontWeight: 600,
+            }}>
+              🔒 變更管理密碼
+            </button>
+          ) : (
+            <div style={{ background: '#fff', borderRadius: 14, border: '1px solid #EBE2E6', padding: 16 }}>
+              <input type="tel" inputMode="numeric" maxLength={4} placeholder="目前密碼" value={oldPin}
+                onChange={e => setOldPin(e.target.value.replace(/\D/g, '').slice(0, 4))} style={{
+                  width: '100%', boxSizing: 'border-box', fontSize: 14, border: '1px solid #EBE2E6',
+                  borderRadius: 10, padding: '10px 12px', marginBottom: 8, outline: 'none', letterSpacing: 4,
+                }} />
+              <input type="tel" inputMode="numeric" maxLength={4} placeholder="新密碼（4位數）" value={newPin}
+                onChange={e => setNewPin(e.target.value.replace(/\D/g, '').slice(0, 4))} style={{
+                  width: '100%', boxSizing: 'border-box', fontSize: 14, border: '1px solid #EBE2E6',
+                  borderRadius: 10, padding: '10px 12px', marginBottom: 8, outline: 'none', letterSpacing: 4,
+                }} />
+              <input type="tel" inputMode="numeric" maxLength={4} placeholder="再輸入一次新密碼" value={newPin2}
+                onChange={e => setNewPin2(e.target.value.replace(/\D/g, '').slice(0, 4))} style={{
+                  width: '100%', boxSizing: 'border-box', fontSize: 14, border: '1px solid #EBE2E6',
+                  borderRadius: 10, padding: '10px 12px', marginBottom: 8, outline: 'none', letterSpacing: 4,
+                }} />
+              {pinMsg && <div style={{ fontSize: 12, color: pinMsg === '已更新' ? '#6F8B6E' : '#8A4A40', marginBottom: 8 }}>{pinMsg}</div>}
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button onClick={handleChangePin} style={{
+                  flex: 1, padding: '10px 0', borderRadius: 10, border: 'none',
+                  background: '#4A2545', color: '#fff', fontSize: 13, fontWeight: 600,
+                }}>儲存</button>
+                <button onClick={() => { setPinEditing(false); setPinMsg(''); setOldPin(''); setNewPin(''); setNewPin2(''); }} style={{
+                  flex: 1, padding: '10px 0', borderRadius: 10, border: '1px solid #EBE2E6',
+                  background: '#fff', color: '#6E5B68', fontSize: 13, fontWeight: 600,
+                }}>取消</button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 10 }}>
         <button onClick={switchRole} style={{
           padding: '13px', borderRadius: 14, border: '1px solid #EBE2E6', background: '#fff',
           color: '#2B1E2A', fontSize: 13, fontWeight: 600,
         }}>
-          切換身份
+          切換身份（留在這間店）
         </button>
-        <button onClick={clearEverything} style={{
+        <button onClick={leaveSalon} style={{
           padding: '13px', borderRadius: 14, border: '1px solid #E6C7C1', background: '#F5E6E3',
           color: '#8A4A40', fontSize: 13, fontWeight: 600,
         }}>
-          清除所有資料
+          離開這個店家
         </button>
       </div>
       </div>

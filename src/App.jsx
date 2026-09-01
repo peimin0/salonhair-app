@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import Onboarding from './screens/Onboarding.jsx';
 import DesignerScreen from './screens/DesignerScreen.jsx';
 import OwnerScreen from './screens/OwnerScreen.jsx';
@@ -7,45 +7,76 @@ import HistoryScreen from './screens/HistoryScreen.jsx';
 import SettingsScreen from './screens/SettingsScreen.jsx';
 import { TabIcon } from './components/ui.jsx';
 import { color } from './theme.js';
-import { getDesigners, getEntries, getRole, getCurrentDesignerId, getServices, getCustomers } from './data/store.js';
+import {
+  getRole, getCurrentDesignerId, getSalonCode,
+  subscribeDesigners, subscribeEntries, subscribeCustomers, subscribeServices,
+} from './data/store.js';
 
 export default function App() {
   const [loading, setLoading] = useState(true);
   const [role, setRoleState] = useState(null);
+  const [salonCode, setSalonCodeState] = useState(null);
+  const [currentDesignerId, setCurrentDesignerIdState] = useState(null);
+
   const [designers, setDesigners] = useState([]);
   const [entries, setEntries] = useState([]);
-  const [services, setServices] = useState([]);
   const [customers, setCustomers] = useState([]);
-  const [currentDesignerId, setCurrentDesignerIdState] = useState(null);
-  const [tab, setTab] = useState('main');
+  const [services, setServices] = useState([]);
+  const [cloudReady, setCloudReady] = useState(false);
 
-  const loadAll = useCallback(async () => {
-    const [r, ds, es, cid, sv, cu] = await Promise.all([
-      getRole(), getDesigners(), getEntries(), getCurrentDesignerId(), getServices(), getCustomers(),
-    ]);
+  const [tab, setTab] = useState('main');
+  const unsubsRef = useRef([]);
+
+  // 讀取這支裝置的身份（角色 / 目前登入哪家店）
+  const loadIdentity = useCallback(async () => {
+    const [r, cid, sc] = await Promise.all([getRole(), getCurrentDesignerId(), getSalonCode()]);
     setRoleState(r);
-    setDesigners(ds);
-    setEntries(es);
     setCurrentDesignerIdState(cid);
-    setServices(sv);
-    setCustomers(cu);
+    setSalonCodeState(sc);
     setLoading(false);
   }, []);
 
-  const loadServices = useCallback(async () => {
-    setServices(await getServices());
-  }, []);
+  useEffect(() => { loadIdentity(); }, [loadIdentity]);
 
-  useEffect(() => { loadAll(); }, [loadAll]);
+  // 一旦知道角色 + 店家代碼，就訂閱這間店的雲端資料（即時同步）
+  useEffect(() => {
+    unsubsRef.current.forEach(fn => fn());
+    unsubsRef.current = [];
+    setCloudReady(false);
+
+    if (!role || !salonCode) return;
+
+    let flags = { d: false, e: false, c: false, s: false };
+    const checkReady = () => {
+      if (flags.d && flags.e && flags.c && flags.s) setCloudReady(true);
+    };
+
+    const u1 = subscribeDesigners(salonCode, list => { setDesigners(list); flags.d = true; checkReady(); });
+    const u2 = subscribeEntries(salonCode, list => { setEntries(list); flags.e = true; checkReady(); });
+    const u3 = subscribeCustomers(salonCode, list => { setCustomers(list); flags.c = true; checkReady(); });
+    const u4 = subscribeServices(salonCode, list => { setServices(list); flags.s = true; checkReady(); });
+    unsubsRef.current = [u1, u2, u3, u4];
+
+    return () => { unsubsRef.current.forEach(fn => fn()); unsubsRef.current = []; };
+  }, [role, salonCode]);
 
   if (loading) {
-    return (
-      <div style={{ minHeight: '100vh', background: color.pageGradient }} />
-    );
+    return <div style={{ minHeight: '100vh', background: color.pageGradient }} />;
   }
 
-  if (!role) {
-    return <Onboarding designers={designers} onDone={loadAll} />;
+  if (!role || !salonCode) {
+    return <Onboarding cachedSalonCode={salonCode} onDone={loadIdentity} />;
+  }
+
+  if (!cloudReady) {
+    return (
+      <div style={{
+        minHeight: '100vh', background: color.pageGradient, display: 'flex',
+        alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 10,
+      }}>
+        <div style={{ fontSize: 13, color: color.textSecondary, fontWeight: 600 }}>同步中…</div>
+      </div>
+    );
   }
 
   const currentDesigner = designers.find(d => d.id === currentDesignerId) || null;
@@ -78,35 +109,34 @@ export default function App() {
         )}
         {tab === 'entry' && (
           <EntryScreen
+            salonCode={salonCode}
             role={role}
             designers={designers}
             currentDesignerId={currentDesignerId}
             services={services}
             customers={customers}
             entries={entries}
-            onSaved={loadAll}
           />
         )}
         {tab === 'history' && (
           <HistoryScreen
+            salonCode={salonCode}
             role={role}
             designers={designers}
             entries={entries}
             services={services}
             customers={customers}
             currentDesignerId={currentDesignerId}
-            onChanged={loadAll}
           />
         )}
         {tab === 'settings' && (
           <SettingsScreen
+            salonCode={salonCode}
             role={role}
             designers={designers}
             services={services}
             customers={customers}
-            onChanged={loadAll}
-            onServicesChanged={loadServices}
-            onRoleReset={loadAll}
+            onRoleReset={loadIdentity}
           />
         )}
       </div>

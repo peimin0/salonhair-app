@@ -14,7 +14,13 @@ function nowTimeStr() {
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
 
-export default function EntryScreen({ role, designers, currentDesignerId, services, customers, entries, onSaved }) {
+function todayStrOf(iso) {
+  const d = new Date(iso);
+  const tz = d.getTimezoneOffset() * 60000;
+  return new Date(d - tz).toISOString().slice(0, 10);
+}
+
+export default function EntryScreen({ salonCode, role, designers, currentDesignerId, services, customers, entries }) {
   const fixedDesigner = role === 'designer'
     ? designers.find(d => d.id === currentDesignerId)
     : null;
@@ -33,6 +39,25 @@ export default function EntryScreen({ role, designers, currentDesignerId, servic
     ? Math.round(Number(amount) * targetDesigner.commissionRate)
     : null;
 
+  // 這位設計師最近服務過的客人（去重、依時間新到舊），點一下就能快速帶入，
+  // 降低「懶得打字」造成漏記的機率
+  const recentCustomerIds = [];
+  entries
+    .filter(e => e.designerId === targetId && e.customerId)
+    .sort((a, b) => new Date(b.dateISO) - new Date(a.dateISO))
+    .forEach(e => { if (!recentCustomerIds.includes(e.customerId)) recentCustomerIds.push(e.customerId); });
+  const recentCustomers = recentCustomerIds
+    .slice(0, 5)
+    .map(id => customers.find(c => c.id === id))
+    .filter(Boolean);
+
+  // 今天已經記錄幾筆——讓設計師/前台自己核對有沒有漏記
+  const today = todayStr();
+  const todayCount = (role === 'designer'
+    ? entries.filter(e => e.designerId === currentDesignerId)
+    : entries
+  ).filter(e => todayStrOf(e.dateISO) === today).length;
+
   // 判斷這位客人在這位設計師底下是不是回頭客：只要名字對上既有客人，
   // 且該客人在這位設計師底下已經有記錄，就算回頭客
   const matchedByName = customers.find(c => c.name === customerQuery.trim());
@@ -47,12 +72,12 @@ export default function EntryScreen({ role, designers, currentDesignerId, servic
     const name = customerQuery.trim();
     let finalCustomerId = effectiveCustomerId;
     if (!finalCustomerId && name) {
-      const created = await addCustomer(name);
+      const created = await addCustomer(salonCode, name);
       finalCustomerId = created.id;
     }
     // 補登過去日期時，用選擇的時間；沒特別選就是現在的時間
     const dateISO = new Date(`${dateStr}T${timeStr || '12:00'}:00`).toISOString();
-    await addEntry({
+    await addEntry(salonCode, {
       designerId: targetId,
       service,
       amount: Number(amount),
@@ -66,7 +91,6 @@ export default function EntryScreen({ role, designers, currentDesignerId, servic
     setCustomerId(null);
     setDateStr(todayStr());
     setTimeStr(nowTimeStr());
-    onSaved();
     setTimeout(() => setSaved(false), 1600);
   };
 
@@ -91,8 +115,13 @@ export default function EntryScreen({ role, designers, currentDesignerId, servic
       <PageBackground src={stylingImg} />
       <div style={{ padding: '20px 16px 100px', position: 'relative', zIndex: 1 }}>
       <div style={{ fontSize: 13, color: '#6E5B68' }}>今天</div>
-      <div style={{ fontSize: 26, fontWeight: 700, color: '#2B1E2A', marginTop: 2, marginBottom: 16 }}>
-        新增一筆服務記錄
+      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 16 }}>
+        <div style={{ fontSize: 26, fontWeight: 700, color: '#2B1E2A', marginTop: 2 }}>
+          新增一筆服務記錄
+        </div>
+        <div style={{ fontSize: 12, fontWeight: 600, color: todayCount > 0 ? '#6F8B6E' : '#9C8B97', flexShrink: 0, marginLeft: 8 }}>
+          今日已記錄 {todayCount} 筆
+        </div>
       </div>
 
       {!fixedDesigner && (
@@ -109,6 +138,15 @@ export default function EntryScreen({ role, designers, currentDesignerId, servic
       )}
 
       <div style={{ fontSize: 12, fontWeight: 600, color: '#6E5B68', marginBottom: 8 }}>客人</div>
+      {recentCustomers.length > 0 && (
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
+          {recentCustomers.map(c => (
+            <Chip key={c.id} active={customerId === c.id} onClick={() => { setCustomerId(c.id); setCustomerQuery(c.name); }}>
+              ↻ {c.name}
+            </Chip>
+          ))}
+        </div>
+      )}
       <div style={{ marginBottom: 8 }}>
         <CustomerAutocomplete
           customers={customers}

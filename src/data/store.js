@@ -1,160 +1,176 @@
 import { Preferences } from '@capacitor/preferences';
-
-const KEYS = {
-  designers: 'salon_designers',
-  entries: 'salon_entries',
-  role: 'salon_role',
-  currentDesignerId: 'salon_current_designer_id',
-  services: 'salon_services',
-  customers: 'salon_customers',
-};
+import {
+  collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc, deleteDoc,
+  onSnapshot, arrayUnion, arrayRemove,
+} from 'firebase/firestore';
+import { db, authReady } from './firebase.js';
 
 const DEFAULT_SERVICES = ['剪髮', '染髮', '燙髮', '護髮'];
+const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // 排除容易看錯的 0/O、1/I
 
-async function getJSON(key, fallback) {
-  const { value } = await Preferences.get({ key });
-  if (!value) return fallback;
-  try {
-    return JSON.parse(value);
-  } catch {
-    return fallback;
-  }
+function genSalonCode() {
+  let code = '';
+  for (let i = 0; i < 6; i++) code += CODE_CHARS[Math.floor(Math.random() * CODE_CHARS.length)];
+  return code;
 }
 
-async function setJSON(key, data) {
-  await Preferences.set({ key, value: JSON.stringify(data) });
-}
+// ============ 裝置本機身份（只存在這支手機上，不同步） ============
+const LOCAL_KEYS = {
+  role: 'salon_role',
+  currentDesignerId: 'salon_current_designer_id',
+  salonCode: 'salon_code',
+};
 
-// ---------- 設計師 ----------
-export async function getDesigners() {
-  return getJSON(KEYS.designers, []);
-}
-
-export async function saveDesigners(designers) {
-  await setJSON(KEYS.designers, designers);
-}
-
-export async function addDesigner(name, commissionRate) {
-  const designers = await getDesigners();
-  const newDesigner = {
-    id: 'd_' + Date.now(),
-    name,
-    commissionRate,
-  };
-  const updated = [...designers, newDesigner];
-  await saveDesigners(updated);
-  return newDesigner;
-}
-
-export async function updateDesigner(id, patch) {
-  const designers = await getDesigners();
-  const updated = designers.map(d => (d.id === id ? { ...d, ...patch } : d));
-  await saveDesigners(updated);
-}
-
-export async function deleteDesigner(id) {
-  const designers = await getDesigners();
-  await saveDesigners(designers.filter(d => d.id !== id));
-}
-
-// ---------- 服務記錄 ----------
-export async function getEntries() {
-  return getJSON(KEYS.entries, []);
-}
-
-export async function addEntry(entry) {
-  const entries = await getEntries();
-  const newEntry = {
-    id: 'e_' + Date.now(),
-    dateISO: new Date().toISOString(),
-    ...entry,
-  };
-  const updated = [newEntry, ...entries];
-  await setJSON(KEYS.entries, updated);
-  return newEntry;
-}
-
-export async function deleteEntry(id) {
-  const entries = await getEntries();
-  await setJSON(KEYS.entries, entries.filter(e => e.id !== id));
-}
-
-export async function updateEntry(id, patch) {
-  const entries = await getEntries();
-  const updated = entries.map(e => (e.id === id ? { ...e, ...patch } : e));
-  await setJSON(KEYS.entries, updated);
-}
-
-// ---------- 服務項目 ----------
-export async function getServices() {
-  return getJSON(KEYS.services, DEFAULT_SERVICES);
-}
-
-export async function saveServices(services) {
-  await setJSON(KEYS.services, services);
-}
-
-export async function addService(name) {
-  const services = await getServices();
-  if (services.includes(name)) return services;
-  const updated = [...services, name];
-  await saveServices(updated);
-  return updated;
-}
-
-export async function deleteService(name) {
-  const services = await getServices();
-  const updated = services.filter(s => s !== name);
-  await saveServices(updated);
-  return updated;
-}
-
-// ---------- 角色與目前使用者 ----------
 export async function getRole() {
-  const { value } = await Preferences.get({ key: KEYS.role });
-  return value || null; // 'owner' | 'designer' | null
+  const { value } = await Preferences.get({ key: LOCAL_KEYS.role });
+  return value || null;
 }
-
 export async function setRole(role) {
-  await Preferences.set({ key: KEYS.role, value: role });
+  if (role === null) await Preferences.remove({ key: LOCAL_KEYS.role });
+  else await Preferences.set({ key: LOCAL_KEYS.role, value: role });
 }
 
 export async function getCurrentDesignerId() {
-  const { value } = await Preferences.get({ key: KEYS.currentDesignerId });
+  const { value } = await Preferences.get({ key: LOCAL_KEYS.currentDesignerId });
   return value || null;
 }
-
 export async function setCurrentDesignerId(id) {
-  await Preferences.set({ key: KEYS.currentDesignerId, value: id });
+  await Preferences.set({ key: LOCAL_KEYS.currentDesignerId, value: id || '' });
 }
 
-export async function resetAll() {
-  await Preferences.clear();
+export async function getSalonCode() {
+  const { value } = await Preferences.get({ key: LOCAL_KEYS.salonCode });
+  return value || null;
+}
+export async function setSalonCode(code) {
+  await Preferences.set({ key: LOCAL_KEYS.salonCode, value: code });
 }
 
-// ---------- 客人 ----------
-export async function getCustomers() {
-  return getJSON(KEYS.customers, []);
+// 只切換角色：清掉「這支手機現在扮演誰」，但保留已連線的店家代碼，
+// 同一支裝置在同一間店裡切換身份不用重打代碼
+export async function signOutRole() {
+  await Preferences.remove({ key: LOCAL_KEYS.role });
+  await Preferences.remove({ key: LOCAL_KEYS.currentDesignerId });
 }
 
-export async function saveCustomers(customers) {
-  await setJSON(KEYS.customers, customers);
+// 登出這支裝置：只清掉「這支手機是誰」的設定，雲端店家資料完全不受影響
+export async function signOutDevice() {
+  await Preferences.remove({ key: LOCAL_KEYS.role });
+  await Preferences.remove({ key: LOCAL_KEYS.currentDesignerId });
+  await Preferences.remove({ key: LOCAL_KEYS.salonCode });
 }
 
-export async function addCustomer(name, phone = '') {
-  const customers = await getCustomers();
-  const newCustomer = { id: 'c_' + Date.now(), name, phone };
-  await saveCustomers([...customers, newCustomer]);
-  return newCustomer;
+// ============ 店家（雲端，Firestore） ============
+export async function createSalon(pin) {
+  await authReady;
+  let code, exists = true;
+  while (exists) {
+    code = genSalonCode();
+    const snap = await getDoc(doc(db, 'salons', code));
+    exists = snap.exists();
+  }
+  await setDoc(doc(db, 'salons', code), {
+    pin, services: DEFAULT_SERVICES, createdAt: Date.now(),
+  });
+  return code;
 }
 
-export async function updateCustomer(id, patch) {
-  const customers = await getCustomers();
-  const updated = customers.map(c => (c.id === id ? { ...c, ...patch } : c));
-  await saveCustomers(updated);
+export async function salonExists(code) {
+  await authReady;
+  const snap = await getDoc(doc(db, 'salons', code));
+  return snap.exists();
 }
 
-export async function deleteCustomer(id) {
-  const customers = await getCustomers();
-  await saveCustomers(customers.filter(c => c.id !== id));
+export async function verifySalonPin(code, pin) {
+  await authReady;
+  const snap = await getDoc(doc(db, 'salons', code));
+  if (!snap.exists()) return { ok: false, reason: 'not_found' };
+  if (snap.data().pin !== pin) return { ok: false, reason: 'wrong_pin' };
+  return { ok: true };
+}
+
+export async function updateSalonPin(code, newPin) {
+  await authReady;
+  await updateDoc(doc(db, 'salons', code), { pin: newPin });
+}
+
+// ============ 服務項目（存在店家文件的欄位裡） ============
+export function subscribeServices(code, cb) {
+  return onSnapshot(doc(db, 'salons', code), snap => {
+    cb(snap.exists() ? (snap.data().services || []) : []);
+  });
+}
+export async function addService(code, name) {
+  await authReady;
+  await updateDoc(doc(db, 'salons', code), { services: arrayUnion(name) });
+}
+export async function deleteService(code, name) {
+  await authReady;
+  await updateDoc(doc(db, 'salons', code), { services: arrayRemove(name) });
+}
+
+// ============ 設計師 ============
+export function subscribeDesigners(code, cb) {
+  return onSnapshot(collection(db, 'salons', code, 'designers'), snap => {
+    cb(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+  });
+}
+export async function getDesignersOnce(code) {
+  await authReady;
+  const snap = await getDocs(collection(db, 'salons', code, 'designers'));
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+}
+export async function addDesigner(code, name, commissionRate) {
+  await authReady;
+  const ref = await addDoc(collection(db, 'salons', code, 'designers'), { name, commissionRate });
+  return { id: ref.id, name, commissionRate };
+}
+export async function updateDesigner(code, id, patch) {
+  await authReady;
+  await updateDoc(doc(db, 'salons', code, 'designers', id), patch);
+}
+export async function deleteDesigner(code, id) {
+  await authReady;
+  await deleteDoc(doc(db, 'salons', code, 'designers', id));
+}
+
+// ============ 服務記錄 ============
+export function subscribeEntries(code, cb) {
+  return onSnapshot(collection(db, 'salons', code, 'entries'), snap => {
+    cb(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+  });
+}
+export async function addEntry(code, entry) {
+  await authReady;
+  const payload = { dateISO: new Date().toISOString(), ...entry };
+  const ref = await addDoc(collection(db, 'salons', code, 'entries'), payload);
+  return { id: ref.id, ...payload };
+}
+export async function updateEntry(code, id, patch) {
+  await authReady;
+  await updateDoc(doc(db, 'salons', code, 'entries', id), patch);
+}
+export async function deleteEntry(code, id) {
+  await authReady;
+  await deleteDoc(doc(db, 'salons', code, 'entries', id));
+}
+
+// ============ 客人 ============
+export function subscribeCustomers(code, cb) {
+  return onSnapshot(collection(db, 'salons', code, 'customers'), snap => {
+    cb(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+  });
+}
+export async function addCustomer(code, name, phone = '') {
+  await authReady;
+  const ref = await addDoc(collection(db, 'salons', code, 'customers'), { name, phone });
+  return { id: ref.id, name, phone };
+}
+export async function updateCustomer(code, id, patch) {
+  await authReady;
+  await updateDoc(doc(db, 'salons', code, 'customers', id), patch);
+}
+export async function deleteCustomer(code, id) {
+  await authReady;
+  await deleteDoc(doc(db, 'salons', code, 'customers', id));
 }

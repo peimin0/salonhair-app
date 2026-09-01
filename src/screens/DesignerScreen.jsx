@@ -14,11 +14,28 @@ export default function DesignerScreen({ designer, entries }) {
   const trend = trendForDesigner(entries, designer.id, 4);
   const hasAnyData = trend.some(t => t.value > 0);
 
+  const todayStr = (() => {
+    const d = new Date();
+    const tz = d.getTimezoneOffset() * 60000;
+    return new Date(d - tz).toISOString().slice(0, 10);
+  })();
+  const todayCount = entries.filter(e => {
+    if (e.designerId !== designer.id) return false;
+    const d = new Date(e.dateISO);
+    const tz = d.getTimezoneOffset() * 60000;
+    return new Date(d - tz).toISOString().slice(0, 10) === todayStr;
+  }).length;
+
   return (
     <div style={{ padding: '20px 16px 100px' }}>
       <div style={{ fontSize: 13, color: color.textSecondary }}>{currentMonthDisplay()} · 我的業績</div>
-      <div style={{ fontSize: 26, fontWeight: 700, color: color.textPrimary, marginTop: 2, marginBottom: 16 }}>
-        {designer.name} 設計師
+      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 16 }}>
+        <div style={{ fontSize: 26, fontWeight: 700, color: color.textPrimary, marginTop: 2 }}>
+          {designer.name} 設計師
+        </div>
+        <div style={{ fontSize: 12, fontWeight: 600, color: todayCount > 0 ? color.sage : color.textFaint, flexShrink: 0, marginLeft: 8 }}>
+          今天 {todayCount} 筆
+        </div>
       </div>
 
       <div style={{
