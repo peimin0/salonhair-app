@@ -95,10 +95,10 @@ export async function updateSalonPin(code, newPin) {
 }
 
 // ============ 服務項目（存在店家文件的欄位裡） ============
-export function subscribeServices(code, cb) {
+export function subscribeServices(code, cb, onError) {
   return onSnapshot(doc(db, 'salons', code), snap => {
     cb(snap.exists() ? (snap.data().services || []) : []);
-  });
+  }, onError);
 }
 export async function addService(code, name) {
   await authReady;
@@ -110,10 +110,10 @@ export async function deleteService(code, name) {
 }
 
 // ============ 設計師 ============
-export function subscribeDesigners(code, cb) {
+export function subscribeDesigners(code, cb, onError) {
   return onSnapshot(collection(db, 'salons', code, 'designers'), snap => {
     cb(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-  });
+  }, onError);
 }
 export async function getDesignersOnce(code) {
   await authReady;
@@ -135,10 +135,10 @@ export async function deleteDesigner(code, id) {
 }
 
 // ============ 服務記錄 ============
-export function subscribeEntries(code, cb) {
+export function subscribeEntries(code, cb, onError) {
   return onSnapshot(collection(db, 'salons', code, 'entries'), snap => {
     cb(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-  });
+  }, onError);
 }
 export async function addEntry(code, entry) {
   await authReady;
@@ -156,10 +156,10 @@ export async function deleteEntry(code, id) {
 }
 
 // ============ 客人 ============
-export function subscribeCustomers(code, cb) {
+export function subscribeCustomers(code, cb, onError) {
   return onSnapshot(collection(db, 'salons', code, 'customers'), snap => {
     cb(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-  });
+  }, onError);
 }
 export async function addCustomer(code, name, phone = '') {
   await authReady;

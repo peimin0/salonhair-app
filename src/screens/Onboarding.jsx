@@ -33,23 +33,33 @@ export default function Onboarding({ cachedSalonCode, onDone }) {
 
   const confirmOwnerPinOnly = async () => {
     setLoading(true); setError('');
-    const res = await verifySalonPin(cachedSalonCode, pinInput);
-    setLoading(false);
-    if (!res.ok) { setError('密碼不對，再試一次'); setPinInput(''); return; }
-    await setRole('owner');
-    onDone();
+    try {
+      const res = await verifySalonPin(cachedSalonCode, pinInput);
+      if (!res.ok) { setError('密碼不對，再試一次'); setPinInput(''); setLoading(false); return; }
+      await setRole('owner');
+      onDone();
+    } catch (err) {
+      console.error(err);
+      setError('連線失敗：' + (err?.code || err?.message || '請檢查網路後再試一次'));
+      setLoading(false);
+    }
   };
 
   const confirmCreateSalon = async () => {
     if (pinInput.length !== 4) { setError('請輸入 4 位數密碼'); return; }
     if (pinInput !== pinConfirm) { setError('兩次輸入的密碼不一樣'); return; }
     setLoading(true); setError('');
-    const code = await createSalon(pinInput);
+    try {
+      const code = await createSalon(pinInput);
+      setNewCode(code);
+      await setSalonCode(code);
+      await setRole('owner');
+      setStep('ownerCodeReveal');
+    } catch (err) {
+      console.error(err);
+      setError('連線失敗：' + (err?.code || err?.message || '請檢查網路後再試一次'));
+    }
     setLoading(false);
-    setNewCode(code);
-    await setSalonCode(code);
-    await setRole('owner');
-    setStep('ownerCodeReveal');
   };
 
   const finishAfterReveal = () => onDone();
@@ -59,15 +69,21 @@ export default function Onboarding({ cachedSalonCode, onDone }) {
     if (code.length !== 6) { setError('店家代碼是 6 個字'); return; }
     if (pinInput.length !== 4) { setError('請輸入 4 位數密碼'); return; }
     setLoading(true); setError('');
-    const res = await verifySalonPin(code, pinInput);
-    setLoading(false);
-    if (!res.ok) {
-      setError(res.reason === 'not_found' ? '找不到這個店家代碼' : '密碼不對');
-      return;
+    try {
+      const res = await verifySalonPin(code, pinInput);
+      if (!res.ok) {
+        setError(res.reason === 'not_found' ? '找不到這個店家代碼' : '密碼不對');
+        setLoading(false);
+        return;
+      }
+      await setSalonCode(code);
+      await setRole('owner');
+      onDone();
+    } catch (err) {
+      console.error(err);
+      setError('連線失敗：' + (err?.code || err?.message || '請檢查網路後再試一次'));
+      setLoading(false);
     }
-    await setSalonCode(code);
-    await setRole('owner');
-    onDone();
   };
 
   // ---------- 設計師 ----------
@@ -75,10 +91,15 @@ export default function Onboarding({ cachedSalonCode, onDone }) {
     resetTransient();
     if (cachedSalonCode) {
       setLoading(true);
-      const ds = await getDesignersOnce(cachedSalonCode);
+      try {
+        const ds = await getDesignersOnce(cachedSalonCode);
+        setFoundDesigners(ds);
+        setStep(ds.length > 0 ? 'pickSelf' : 'createSelf');
+      } catch (err) {
+        console.error(err);
+        setError('連線失敗：' + (err?.code || err?.message || '請檢查網路後再試一次'));
+      }
       setLoading(false);
-      setFoundDesigners(ds);
-      setStep(ds.length > 0 ? 'pickSelf' : 'createSelf');
     } else {
       setStep('designerJoinCode');
     }
@@ -88,14 +109,19 @@ export default function Onboarding({ cachedSalonCode, onDone }) {
     const code = codeInput.trim().toUpperCase();
     if (code.length !== 6) { setError('店家代碼是 6 個字'); return; }
     setLoading(true); setError('');
-    const exists = await salonExists(code);
-    if (!exists) { setLoading(false); setError('找不到這個店家代碼，跟店長確認一下'); return; }
-    const ds = await getDesignersOnce(code);
+    try {
+      const exists = await salonExists(code);
+      if (!exists) { setError('找不到這個店家代碼，跟店長確認一下'); setLoading(false); return; }
+      const ds = await getDesignersOnce(code);
+      setJoinedCode(code);
+      await setSalonCode(code);
+      setFoundDesigners(ds);
+      setStep(ds.length > 0 ? 'pickSelf' : 'createSelf');
+    } catch (err) {
+      console.error(err);
+      setError('連線失敗：' + (err?.code || err?.message || '請檢查網路後再試一次'));
+    }
     setLoading(false);
-    setJoinedCode(code);
-    await setSalonCode(code);
-    setFoundDesigners(ds);
-    setStep(ds.length > 0 ? 'pickSelf' : 'createSelf');
   };
 
   const pickExisting = async (id) => {
@@ -107,12 +133,17 @@ export default function Onboarding({ cachedSalonCode, onDone }) {
   const createSelf = async () => {
     if (!name.trim()) return;
     const code = cachedSalonCode || joinedCode;
-    setLoading(true);
-    const d = await addDesigner(code, name.trim(), Math.min(90, Math.max(10, Number(rate) || 45)) / 100);
+    setLoading(true); setError('');
+    try {
+      const d = await addDesigner(code, name.trim(), Math.min(90, Math.max(10, Number(rate) || 45)) / 100);
+      await setRole('designer');
+      await setCurrentDesignerId(d.id);
+      onDone();
+    } catch (err) {
+      console.error(err);
+      setError('連線失敗：' + (err?.code || err?.message || '請檢查網路後再試一次'));
+    }
     setLoading(false);
-    await setRole('designer');
-    await setCurrentDesignerId(d.id);
-    onDone();
   };
 
   const pinInputStyle = {
@@ -166,6 +197,8 @@ export default function Onboarding({ cachedSalonCode, onDone }) {
                 <div style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.75)', marginTop: 4 }}>查看團隊總覽與留才風險</div>
               </button>
             </div>
+            {loading && <div style={{ fontSize: 12, color: color.textSecondary, textAlign: 'center', marginTop: 14 }}>連線中…</div>}
+            {error && <div style={{ fontSize: 12, color: color.roseDeep, textAlign: 'center', marginTop: 14 }}>{error}</div>}
           </>
         )}
 

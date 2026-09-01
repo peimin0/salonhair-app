@@ -23,6 +23,7 @@ export default function App() {
   const [customers, setCustomers] = useState([]);
   const [services, setServices] = useState([]);
   const [cloudReady, setCloudReady] = useState(false);
+  const [syncError, setSyncError] = useState('');
 
   const [tab, setTab] = useState('main');
   const unsubsRef = useRef([]);
@@ -43,6 +44,7 @@ export default function App() {
     unsubsRef.current.forEach(fn => fn());
     unsubsRef.current = [];
     setCloudReady(false);
+    setSyncError('');
 
     if (!role || !salonCode) return;
 
@@ -50,11 +52,15 @@ export default function App() {
     const checkReady = () => {
       if (flags.d && flags.e && flags.c && flags.s) setCloudReady(true);
     };
+    const onErr = (err) => {
+      console.error(err);
+      setSyncError('同步失敗：' + (err?.code || err?.message || '請檢查網路後重新開啟 App'));
+    };
 
-    const u1 = subscribeDesigners(salonCode, list => { setDesigners(list); flags.d = true; checkReady(); });
-    const u2 = subscribeEntries(salonCode, list => { setEntries(list); flags.e = true; checkReady(); });
-    const u3 = subscribeCustomers(salonCode, list => { setCustomers(list); flags.c = true; checkReady(); });
-    const u4 = subscribeServices(salonCode, list => { setServices(list); flags.s = true; checkReady(); });
+    const u1 = subscribeDesigners(salonCode, list => { setDesigners(list); flags.d = true; checkReady(); }, onErr);
+    const u2 = subscribeEntries(salonCode, list => { setEntries(list); flags.e = true; checkReady(); }, onErr);
+    const u3 = subscribeCustomers(salonCode, list => { setCustomers(list); flags.c = true; checkReady(); }, onErr);
+    const u4 = subscribeServices(salonCode, list => { setServices(list); flags.s = true; checkReady(); }, onErr);
     unsubsRef.current = [u1, u2, u3, u4];
 
     return () => { unsubsRef.current.forEach(fn => fn()); unsubsRef.current = []; };
@@ -72,9 +78,16 @@ export default function App() {
     return (
       <div style={{
         minHeight: '100vh', background: color.pageGradient, display: 'flex',
-        alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 10,
+        alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 10, padding: '0 32px', textAlign: 'center',
       }}>
-        <div style={{ fontSize: 13, color: color.textSecondary, fontWeight: 600 }}>同步中…</div>
+        {syncError ? (
+          <>
+            <div style={{ fontSize: 13, color: color.roseDeep, fontWeight: 600 }}>{syncError}</div>
+            <div style={{ fontSize: 12, color: color.textSecondary, marginTop: 4 }}>確認手機有網路連線，再重新開啟 App 試試</div>
+          </>
+        ) : (
+          <div style={{ fontSize: 13, color: color.textSecondary, fontWeight: 600 }}>同步中…</div>
+        )}
       </div>
     );
   }
