@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Chip, PrimaryButton, CustomerAutocomplete } from '../components/ui.jsx';
+import { Chip, PrimaryButton, CustomerAutocomplete, PhotoBanner } from '../components/ui.jsx';
 import { addEntry, addCustomer } from '../data/store.js';
+import stylingImg from '../assets/photos/styling.jpg';
 
 function todayStr() {
   const d = new Date();
@@ -84,6 +85,7 @@ export default function EntryScreen({ role, designers, currentDesignerId, servic
 
   return (
     <div style={{ padding: '20px 16px 100px' }}>
+      <PhotoBanner src={stylingImg} height={130} style={{ marginBottom: 16 }} />
       <div style={{ fontSize: 13, color: '#6E5B68' }}>今天</div>
       <div style={{ fontSize: 26, fontWeight: 700, color: '#2B1E2A', marginTop: 2, marginBottom: 16 }}>
         新增一筆服務記錄

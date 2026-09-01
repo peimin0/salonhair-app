@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { PrimaryButton } from '../components/ui.jsx';
+import { PrimaryButton, PhotoBanner } from '../components/ui.jsx';
 import { addDesigner, updateDesigner, deleteDesigner, setRole, resetAll, addService, deleteService, updateCustomer, deleteCustomer } from '../data/store.js';
+import shelfImg from '../assets/photos/shelf.jpg';
 
 export default function SettingsScreen({ role, designers, services, customers, onChanged, onServicesChanged, onRoleReset }) {
   const [openId, setOpenId] = useState(null);
@@ -86,6 +87,7 @@ export default function SettingsScreen({ role, designers, services, customers, o
 
   return (
     <div style={{ padding: '20px 16px 100px' }}>
+      <PhotoBanner src={shelfImg} height={130} style={{ marginBottom: 16 }} />
       <div style={{ fontSize: 13, color: '#6E5B68' }}>設定</div>
       <div style={{ fontSize: 26, fontWeight: 700, color: '#2B1E2A', marginTop: 2, marginBottom: 20 }}>
         管理團隊與帳號

@@ -123,6 +123,22 @@ export function CustomerAutocomplete({ customers, queryText, onQueryChange, sele
   );
 }
 
+// 頁面頂部圖片橫幅，底部帶漸層遮罩融入背景
+export function PhotoBanner({ src, height = 150, style }) {
+  return (
+    <div style={{
+      position: 'relative', width: '100%', height, borderRadius: radius.lg,
+      overflow: 'hidden', ...style,
+    }}>
+      <img src={src} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+      <div style={{
+        position: 'absolute', inset: 0,
+        background: 'linear-gradient(180deg, rgba(43,30,42,0) 45%, rgba(43,30,42,0.30) 100%)',
+      }} />
+    </div>
+  );
+}
+
 // 分頁列圖示：線條風格，統一 stroke，避免用 emoji 造成風格不一致
 const iconPaths = {
   shield: 'M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3z',

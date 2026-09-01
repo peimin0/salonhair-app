@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { addDesigner, setRole, setCurrentDesignerId } from '../data/store.js';
-import { PrimaryButton } from '../components/ui.jsx';
+import { PrimaryButton, PhotoBanner } from '../components/ui.jsx';
 import { color, radius, shadow } from '../theme.js';
+import interiorImg from '../assets/photos/interior.jpg';
 
 export default function Onboarding({ designers, onDone }) {
   const [step, setStep] = useState('choose'); // choose | pickSelf | createSelf
@@ -40,6 +41,7 @@ export default function Onboarding({ designers, onDone }) {
     }}>
       {step === 'choose' && (
         <>
+          <PhotoBanner src={interiorImg} height={190} style={{ marginBottom: 20 }} />
           <div style={{ fontSize: 13, color: color.textSecondary, textAlign: 'center' }}>歡迎使用</div>
           <div style={{ fontSize: 27, fontWeight: 700, color: color.textPrimary, textAlign: 'center', marginBottom: 28, letterSpacing: '-0.01em' }}>
             髮廊業績通
