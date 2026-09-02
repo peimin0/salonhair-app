@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   addDesigner, setRole, setCurrentDesignerId, setSalonCode,
-  createSalon, salonExists, verifySalonPin, getDesignersOnce,
+  createSalon, salonExists, verifySalonPin, getDesignersOnce, claimDesigner,
 } from '../data/store.js';
 import { PrimaryButton, PageBackground } from '../components/ui.jsx';
 import { color, radius, shadow } from '../theme.js';
@@ -125,9 +125,18 @@ export default function Onboarding({ cachedSalonCode, onDone }) {
   };
 
   const pickExisting = async (id) => {
-    await setRole('designer');
-    await setCurrentDesignerId(id);
-    onDone();
+    const code = cachedSalonCode || joinedCode;
+    setLoading(true); setError('');
+    try {
+      await claimDesigner(code, id);
+      await setRole('designer');
+      await setCurrentDesignerId(id);
+      onDone();
+    } catch (err) {
+      console.error(err);
+      setError('連線失敗：' + (err?.code || err?.message || '請檢查網路後再試一次'));
+      setLoading(false);
+    }
   };
 
   const createSelf = async () => {
@@ -136,6 +145,7 @@ export default function Onboarding({ cachedSalonCode, onDone }) {
     setLoading(true); setError('');
     try {
       const d = await addDesigner(code, name.trim(), Math.min(90, Math.max(10, Number(rate) || 45)) / 100);
+      await claimDesigner(code, d.id);
       await setRole('designer');
       await setCurrentDesignerId(d.id);
       onDone();

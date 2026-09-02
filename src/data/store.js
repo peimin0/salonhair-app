@@ -8,6 +8,14 @@ import { db, authReady } from './firebase.js';
 const DEFAULT_SERVICES = ['剪髮', '染髮', '燙髮', '護髮'];
 const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // 排除容易看錯的 0/O、1/I
 
+// 密碼不存明文，存雜湊值——這樣就算有人繞過 App 直接讀到 Firestore 文件，
+// 看到的也只是一串雜湊，不是密碼本身
+async function hashPin(pin) {
+  const data = new TextEncoder().encode(pin + ':salon-app-v1');
+  const buf = await crypto.subtle.digest('SHA-256', data);
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
 function genSalonCode() {
   let code = '';
   for (let i = 0; i < 6; i++) code += CODE_CHARS[Math.floor(Math.random() * CODE_CHARS.length)];
@@ -62,7 +70,7 @@ export async function signOutDevice() {
 
 // ============ 店家（雲端，Firestore） ============
 export async function createSalon(pin) {
-  await authReady;
+  const user = await authReady;
   let code, exists = true;
   while (exists) {
     code = genSalonCode();
@@ -70,7 +78,7 @@ export async function createSalon(pin) {
     exists = snap.exists();
   }
   await setDoc(doc(db, 'salons', code), {
-    pin, services: DEFAULT_SERVICES, createdAt: Date.now(),
+    pin: await hashPin(pin), services: DEFAULT_SERVICES, createdAt: Date.now(), ownerUid: user.uid,
   });
   return code;
 }
@@ -85,13 +93,28 @@ export async function verifySalonPin(code, pin) {
   await authReady;
   const snap = await getDoc(doc(db, 'salons', code));
   if (!snap.exists()) return { ok: false, reason: 'not_found' };
-  if (snap.data().pin !== pin) return { ok: false, reason: 'wrong_pin' };
+  if (snap.data().pin !== await hashPin(pin)) return { ok: false, reason: 'wrong_pin' };
   return { ok: true };
 }
 
 export async function updateSalonPin(code, newPin) {
   await authReady;
-  await updateDoc(doc(db, 'salons', code), { pin: newPin });
+  await updateDoc(doc(db, 'salons', code), { pin: await hashPin(newPin) });
+}
+
+// 這支裝置現在的登入身份是不是這間店的老闆（用來做免密碼救援：只要還是
+// 當初建立店家的那支裝置、沒清過 App 資料，就能直接改密碼不用先輸入舊密碼）
+export async function isThisDeviceTheOwner(code) {
+  const user = await authReady;
+  const snap = await getDoc(doc(db, 'salons', code));
+  return snap.exists() && snap.data().ownerUid === user.uid;
+}
+
+// 把某個設計師檔案「認領」給目前這支裝置的登入身份，之後雲端規則才能判斷
+// 「這支裝置只能動自己名下的記錄」
+export async function claimDesigner(code, designerId) {
+  const user = await authReady;
+  await updateDoc(doc(db, 'salons', code, 'designers', designerId), { uid: user.uid });
 }
 
 // ============ 服務項目（存在店家文件的欄位裡） ============

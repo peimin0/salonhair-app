@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { PrimaryButton, PageBackground } from '../components/ui.jsx';
 import {
   addDesigner, updateDesigner, deleteDesigner, addService, deleteService,
-  updateCustomer, deleteCustomer, verifySalonPin, updateSalonPin,
+  updateCustomer, deleteCustomer, verifySalonPin, updateSalonPin, isThisDeviceTheOwner,
   signOutRole, signOutDevice,
 } from '../data/store.js';
 import shelfImg from '../assets/photos/shelf.jpg';
@@ -26,8 +26,13 @@ export default function SettingsScreen({ salonCode, role, designers, services, c
 
   const handleChangePin = async () => {
     setPinMsg('');
-    const res = await verifySalonPin(salonCode, oldPin);
-    if (!res.ok) { setPinMsg('目前密碼不對'); return; }
+    // 如果這支裝置就是當初建立店家的那支（登入身份比對成功），
+    // 允許直接改密碼不用先輸入舊密碼——這是忘記密碼時唯一的救援路徑
+    const recognized = await isThisDeviceTheOwner(salonCode);
+    if (!recognized) {
+      const res = await verifySalonPin(salonCode, oldPin);
+      if (!res.ok) { setPinMsg('目前密碼不對'); return; }
+    }
     if (newPin.length !== 4 || newPin !== newPin2) { setPinMsg('新密碼要 4 位數，且兩次要一致'); return; }
     await updateSalonPin(salonCode, newPin);
     setPinMsg('已更新');
@@ -291,7 +296,10 @@ export default function SettingsScreen({ salonCode, role, designers, services, c
             </button>
           ) : (
             <div style={{ background: '#fff', borderRadius: 14, border: '1px solid #EBE2E6', padding: 16 }}>
-              <input type="tel" inputMode="numeric" maxLength={4} placeholder="目前密碼" value={oldPin}
+              <div style={{ fontSize: 11, color: '#9C8B97', marginBottom: 10, lineHeight: 1.5 }}>
+                如果忘記舊密碼，只要是當初建立店家的那支裝置就能直接改（目前密碼可以留空）。
+              </div>
+              <input type="tel" inputMode="numeric" maxLength={4} placeholder="目前密碼（忘記可留空）" value={oldPin}
                 onChange={e => setOldPin(e.target.value.replace(/\D/g, '').slice(0, 4))} style={{
                   width: '100%', boxSizing: 'border-box', fontSize: 14, border: '1px solid #EBE2E6',
                   borderRadius: 10, padding: '10px 12px', marginBottom: 8, outline: 'none', letterSpacing: 4,

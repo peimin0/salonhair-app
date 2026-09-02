@@ -2,7 +2,7 @@
 
 import { initializeApp } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
-import { initializeAuth, inMemoryPersistence, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
+import { initializeAuth, browserLocalPersistence, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
 
 const firebaseConfig = {
   apiKey: 'AIzaSyCiKV1xKFgh8APCEySAB63OiEqtmLtMAhU',
@@ -21,9 +21,11 @@ export const app = initializeApp(firebaseConfig);
 // 未來如果要重新加離線支援，需要另外測試 IndexedDB 在這個環境是否可靠。
 export const db = getFirestore(app);
 
-// Auth 同理：明確指定「不持久化」（每次開 App 重新匿名登入即可，
-// 反正裝置身份是我們自己用 Preferences 管理的，不靠 Firebase Auth 的 session）
-export const auth = initializeAuth(app, { persistence: inMemoryPersistence });
+// Auth 持久化改用 localStorage（不是 IndexedDB，避開之前卡住的問題），
+// 讓同一支裝置每次開 App 都是同一個匿名身份 —— 這是接下來做「真正角色權限」
+// 的必要條件：雲端規則要能分辨「這支裝置是老闆」還是「這支裝置是哪位設計師」，
+// 前提是這支裝置的登入身份要能持續、不是每次開機都換一個新的。
+export const auth = initializeAuth(app, { persistence: browserLocalPersistence });
 
 // 每支裝置用匿名帳號連線（不用註冊帳密），真正的存取範圍靠「店家代碼」控制。
 // authReady 讓其他程式碼可以 await，確保呼叫 Firestore 前一定已經登入完成。
